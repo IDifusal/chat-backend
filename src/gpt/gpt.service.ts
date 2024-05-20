@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import OpenAI from 'openai';
+import { InjectModel } from '@nestjs/mongoose';
 import {
   checkCompleteStatusUseCase,
   createMessageUseCase,
@@ -8,8 +9,13 @@ import {
   getMessageListUseCase,
 } from './use-cases';
 import { QuestionDto } from './dtos/question.dtos';
+import { Question, QuestionDocument } from './schema/question.schema';
+import { Model } from 'mongoose';
 @Injectable()
 export class GptService {
+  constructor(
+    @InjectModel(Question.name) private questionModel: Model<QuestionDocument>,
+  ) {}
   private openai = new OpenAI({
     apiKey: process.env.OPEN_API_KEY_API,
   });
@@ -29,7 +35,9 @@ export class GptService {
       threadId: theadId,
     });
     const messages = await getMessageListUseCase(this.openai, { theadId });
-
+    const threadId = theadId;
+    const newQuestion = new this.questionModel({ threadId, question });
+    newQuestion.save();
     return [messages[0]];
   }
 }
