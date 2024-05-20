@@ -11,6 +11,7 @@ import {
 import { QuestionDto } from './dtos/question.dtos';
 import { Question, QuestionDocument } from './schema/question.schema';
 import { Model } from 'mongoose';
+import { storeWordpress } from './use-cases/store-wordpress.use-case';
 @Injectable()
 export class GptService {
   constructor(
@@ -38,6 +39,7 @@ export class GptService {
     const threadId = theadId;
     const newQuestion = new this.questionModel({ threadId, question });
     newQuestion.save();
+    storeWordpress({ threadId, question });
     return [messages[0]];
   }
 }
