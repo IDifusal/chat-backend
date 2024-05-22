@@ -24,7 +24,11 @@ export class GptService {
     return await createThreadUseCase(this.openai);
   }
   async userQuestion(questionDto: QuestionDto) {
-    const { theadId, question } = questionDto;
+    const { question } = questionDto;
+    let { theadId } = questionDto;
+    if (!theadId) {
+      theadId = (await this.createThread()).id;
+    }
     const assistantId = 'asst_sqBNPQPw6UUymJGZr4SFslm7';
     await createMessageUseCase(this.openai, {
       theadId,
