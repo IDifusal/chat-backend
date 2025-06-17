@@ -12,6 +12,12 @@ export class Question {
   @Prop({ required: true })
   question: string;
 
+  @Prop({ default: 'default' })
+  company: string;
+
+  @Prop({ default: null })
+  assistant: string;
+
   // Automatically managed createdAt and updatedAt fields
 }
 

@@ -1,17 +1,111 @@
-import { Controller, Post, Body } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  Res,
+  HttpStatus,
+  Query,
+  BadRequestException,
+} from '@nestjs/common';
 import { GptService } from './gpt.service';
 import { QuestionDto } from './dtos/question.dtos';
+import { Response } from 'express';
+import { companyExists, getAssistantConfig } from '../config/assistants.config';
+
 @Controller('gpt')
 export class GptController {
   constructor(private readonly gptService: GptService) {}
 
   @Post('create-thread')
-  async createThrea() {
-    return this.gptService.createThread();
+  async createThread(@Query('company') company?: string) {
+    if (!company) {
+      throw new BadRequestException(
+        'Company parameter is required. Please provide a valid company.',
+      );
+    }
+
+    if (!companyExists(company)) {
+      throw new BadRequestException(
+        `Company '${company}' not found. Please provide a valid company.`,
+      );
+    }
+
+    const thread = await this.gptService.createThread({ company });
+    const assistantConfig = getAssistantConfig(company);
+
+    return {
+      threadId: thread.id,
+      messages: assistantConfig.predefinedMessages || [],
+      assistantName: assistantConfig.name,
+    };
   }
 
   @Post('user-question')
-  async userQuestion(@Body() questionDto: QuestionDto) {
-    return await this.gptService.userQuestion(questionDto);
+  async userQuestion(
+    @Body() questionDto: QuestionDto,
+    @Query('company') company?: string,
+  ) {
+    // Validate company if provided
+    if (company && !companyExists(company)) {
+      throw new BadRequestException(
+        `Company '${company}' not found. Please provide a valid company.`,
+      );
+    }
+
+    return await this.gptService.userQuestion(questionDto, { company });
+  }
+
+  @Post('stream-question')
+  async streamQuestion(
+    @Body() questionDto: QuestionDto,
+    @Res() response: Response,
+  ) {
+    try {
+      console.log('Received stream request:', questionDto);
+
+      // Validate company if provided
+      if (questionDto.company && !companyExists(questionDto.company)) {
+        // For streaming endpoints, we need to handle the error differently
+        // since we're using SSE and response object directly
+        response.setHeader('Content-Type', 'text/event-stream');
+        response.setHeader('Cache-Control', 'no-cache');
+        response.setHeader('Connection', 'keep-alive');
+        response.setHeader('Access-Control-Allow-Origin', '*');
+
+        response.write(
+          `data: ${JSON.stringify({
+            status: 'error',
+            message: `Company '${questionDto.company}' not found. Please provide a valid company.`,
+          })}\n\n`,
+        );
+        response.end();
+        return;
+      }
+
+      // Set up SSE headers
+      response.setHeader('Content-Type', 'text/event-stream');
+      response.setHeader('Cache-Control', 'no-cache');
+      response.setHeader('Connection', 'keep-alive');
+      response.setHeader('Access-Control-Allow-Origin', '*');
+
+      await this.gptService.streamQuestion(questionDto, response);
+    } catch (error) {
+      console.error('Stream error:', error);
+      if (!response.headersSent) {
+        response.status(HttpStatus.INTERNAL_SERVER_ERROR).json({
+          status: 'error',
+          message: 'Failed to stream response',
+        });
+      } else {
+        // If headers were already sent, send error as SSE
+        response.write(
+          `data: ${JSON.stringify({
+            status: 'error',
+            message: 'Error during streaming',
+          })}\n\n`,
+        );
+        response.end();
+      }
+    }
   }
 }

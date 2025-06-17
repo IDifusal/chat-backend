@@ -6,7 +6,10 @@ import { MongooseModule } from '@nestjs/mongoose';
 @Module({
   imports: [
     GptModule,
-    ConfigModule.forRoot(),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      load: [() => ({ assistants: require('./config/assistants.config') })],
+    }),
     MongooseModule.forRoot(process.env.MONGO_URL),
   ],
 })

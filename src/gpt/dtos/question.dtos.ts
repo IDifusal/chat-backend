@@ -1,4 +1,14 @@
+import { IsString, IsOptional } from 'class-validator';
+
 export class QuestionDto {
-  readonly theadId: string;
+  @IsString()
+  @IsOptional()
+  readonly threadId?: string;
+
+  @IsString()
   readonly question: string;
+
+  @IsString()
+  @IsOptional()
+  readonly company?: string;
 }
