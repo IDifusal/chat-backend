@@ -10,7 +10,7 @@ The backend has been modified to support multiple companies and their assistants
 
 1. **Company-based Configuration**: Companies and their assistants are defined in a central configuration file
 2. **Default Assistant Selection**: Each company has a default assistant that's used automatically
-3. **Company-based WordPress Integration**: Different WordPress endpoints for different companies
+3. **Company-based WordPress Integration**: Different WordPress endpoindots for different companies
 4. **Query Parameter Validation**: Validation for company query parameters
 5. **Database Storage**: Enhanced database schema to track company and assistant
 
