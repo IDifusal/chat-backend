@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { GptModule } from './gpt/gpt.module';
 import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
+import { AppController } from './app.controller';
 
 @Module({
   imports: [
@@ -12,5 +13,6 @@ import { MongooseModule } from '@nestjs/mongoose';
     }),
     MongooseModule.forRoot(process.env.MONGO_URL),
   ],
+  controllers: [AppController],
 })
 export class AppModule {}
