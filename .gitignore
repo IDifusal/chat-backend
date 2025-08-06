@@ -42,6 +42,7 @@ lerna-debug.log*
 .env.production.local
 .env.local
 
+# Environment variables documentation (contains sensitive examples)
 ENVIRONMENT_VARIABLES.md
 
 # temp directory
