@@ -56,8 +56,18 @@ export const assistantsConfig: { [key: string]: CompanyConfig } = {
       endpoint: 'https://company1.com/wp-json/custom/v1/thread/',
     },
   },
-
-  // Add more companies as needed
+  laTorreLaw: {
+    name: 'La Torre Law',
+    assistant: {
+      id: 'asst_UyucgVomt8ss7y5BUDvwoFut', // Replace with actual ID
+      name: 'La Torre Law Assistant',
+      description: 'Assistant that helps with legal services',
+    },
+    wordpress: {
+      isReady: false,
+      endpoint: 'https://latorellaw.com/wp-json/custom/v1/thread/',
+    },
+  },
 };
 
 // Helper function to get assistant configuration
