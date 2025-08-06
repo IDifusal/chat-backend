@@ -6,7 +6,7 @@ This document lists all the required environment variables for the chat backend 
 
 ### OpenAI Configuration
 ```
-OPEN_API_KEY_API=your_openai_api_key_here
+OPEN_API_KEY_API=sk-proj-your_actual_openai_key_here
 ```
 
 ### Database Configuration
@@ -16,14 +16,14 @@ DATABASE_URL=mongodb://localhost:27017/your_database_name
 
 ### Twilio SMS Configuration
 ```
-TWILIO_ACCOUNT_SID=your_twilio_account_sid_here
+TWILIO_ACCOUNT_SID=AC_your_twilio_account_sid_here
 TWILIO_AUTH_TOKEN=your_twilio_auth_token_here
 TWILIO_FROM_NUMBER=+1234567890
 ```
 
 ### Mailgun Email Configuration
 ```
-MAILGUN_API_KEY=your_mailgun_api_key_here
+MAILGUN_API_KEY=key-your_mailgun_api_key_here
 MAILGUN_DOMAIN=your_domain.mailgun.org
 ADMIN_EMAIL=admin@yourdomain.com
 ```
@@ -68,12 +68,12 @@ NODE_ENV=development
 
 ## Example .env file
 ```
-OPEN_API_KEY_API=sk-proj-abc123...
+OPEN_API_KEY_API=sk-proj-your_actual_openai_key_here
 DATABASE_URL=mongodb://localhost:27017/chatapp
-TWILIO_ACCOUNT_SID=ACbe069e1f139d110ac0df5cf505f5181f
-TWILIO_AUTH_TOKEN=f11bffb1ef160e9f8311b729be702da2
-TWILIO_FROM_NUMBER=+17754069532
-MAILGUN_API_KEY=key-abc123def456...
+TWILIO_ACCOUNT_SID=AC_your_twilio_account_sid_here
+TWILIO_AUTH_TOKEN=your_twilio_auth_token_here
+TWILIO_FROM_NUMBER=+1234567890
+MAILGUN_API_KEY=key-your_mailgun_api_key_here
 MAILGUN_DOMAIN=sandbox123.mailgun.org
 ADMIN_EMAIL=admin@yourdomain.com
 PORT=3000
