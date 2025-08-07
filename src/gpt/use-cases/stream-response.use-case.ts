@@ -3,85 +3,58 @@ import { Response } from 'express';
 
 interface StreamOptions {
   threadId: string;
-  runId: string;
+  messages: any[];
   response: Response;
+  assistantId?: string;
+  model?: string;
 }
 
 export const streamResponseUseCase = async (
   openai: OpenAI,
   options: StreamOptions,
-) => {
-  const { threadId, runId, response } = options;
+): Promise<string> => {
+  const { threadId, messages, response, assistantId, model } = options;
+  let fullResponse = '';
 
   try {
-    // First, poll until the run is completed or fails
-    let run = await openai.beta.threads.runs.retrieve(threadId, runId);
+    // Send initial status
+    response.write(`data: ${JSON.stringify({ status: 'in_progress' })}\n\n`);
 
-    // Send the initial status
-    response.write(`data: ${JSON.stringify({ status: run.status })}\n\n`);
+    // Create the stream using Chat Completions API for real streaming
+    const stream = await openai.chat.completions.create({
+      model: model || 'gpt-4o-mini', // Use configured model or default
+      messages: messages,
+      stream: true,
+      temperature: 0.7,
+      max_tokens: 2048,
+    });
 
-    // Poll until the run is completed or fails
-    while (run.status === 'queued' || run.status === 'in_progress') {
-      // Wait a bit between polls
-      await new Promise((resolve) => setTimeout(resolve, 500));
-
-      // Check the status again
-      run = await openai.beta.threads.runs.retrieve(threadId, runId);
-
-      // Send status updates to the client
-      response.write(`data: ${JSON.stringify({ status: run.status })}\n\n`);
-    }
-
-    if (run.status === 'completed') {
-      // Once completed, stream the messages
-      const messages = await openai.beta.threads.messages.list(threadId, {
-        limit: 1,
-        order: 'desc',
-      });
-
-      // Get the latest assistant message
-      const latestMessage = messages.data.find(
-        (msg) => msg.role === 'assistant',
-      );
-
-      if (latestMessage) {
-        // Extract and stream content
-        for (const contentBlock of latestMessage.content) {
-          if (contentBlock.type === 'text') {
-            // Break up the message into smaller chunks to simulate streaming
-            const text = contentBlock.text.value;
-            const chunks = text.split(' ');
-
-            for (const chunk of chunks) {
-              // Send each chunk as a separate SSE message
-              response.write(
-                `data: ${JSON.stringify({
-                  role: 'assistant',
-                  content: chunk + ' ',
-                  status: 'streaming',
-                })}\n\n`,
-              );
-
-              // Add a small delay to simulate streaming
-              await new Promise((resolve) => setTimeout(resolve, 50));
-            }
-          }
-        }
+    // Process the real stream from OpenAI
+    for await (const chunk of stream) {
+      const content = chunk.choices[0]?.delta?.content;
+      
+      if (content) {
+        fullResponse += content;
+        
+        // Send each real chunk as it arrives from OpenAI
+        response.write(
+          `data: ${JSON.stringify({
+            role: 'assistant',
+            content: content,
+            status: 'streaming',
+          })}\n\n`,
+        );
       }
 
-      // Signal end of stream
-      response.write(`data: ${JSON.stringify({ status: 'done' })}\n\n`);
-    } else if (run.status === 'failed') {
-      // Send error to client
-      response.write(
-        `data: ${JSON.stringify({
-          status: 'error',
-          message: 'Assistant run failed',
-        })}\n\n`,
-      );
+      // Check if the stream is complete
+      if (chunk.choices[0]?.finish_reason === 'stop') {
+        response.write(`data: ${JSON.stringify({ status: 'done' })}\n\n`);
+        break;
+      }
     }
 
     response.end();
+    return fullResponse;
   } catch (error) {
     console.error('Streaming error:', error);
 
@@ -94,5 +67,6 @@ export const streamResponseUseCase = async (
     );
 
     response.end();
+    throw error;
   }
 };

@@ -2,6 +2,7 @@ export interface AssistantConfig {
   id: string;
   name: string;
   description?: string;
+  instructions?: string; // System instructions for the assistant
   apiKey?: string; // Optional: Different API key for each assistant
   model?: string; // Optional: Different model for each assistant
   predefinedMessages?: string[]; // Array of predefined initial messages

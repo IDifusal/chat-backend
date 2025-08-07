@@ -4,6 +4,7 @@ import { InjectModel } from '@nestjs/mongoose';
 import {
   checkCompleteStatusUseCase,
   createMessageUseCase,
+  createAssistantMessageUseCase,
   createRunUseCase,
   createThreadUseCase,
   getMessageListUseCase,
@@ -107,52 +108,105 @@ export class GptService {
       currentThreadId = (await this.createThread({ company })).id;
     }
 
-    // Get assistant ID from config
+    // Get assistant configuration
     const assistantConfig = this.getAssistantConfig({ company });
-    const assistantId = assistantConfig.id;
-
-    // Create user message
-    await createMessageUseCase(openai, {
-      theadId: currentThreadId,
-      question,
-    });
-
-    // Start the run
-    const run = await createRunUseCase(openai, {
-      theadId: currentThreadId,
-      assistantId,
-    });
-
-    // Stream the response immediately
-    await streamResponseUseCase(openai, {
-      threadId: currentThreadId,
-      runId: run.id,
-      response,
-    });
-
-    // After streaming is complete, save to database and WordPress
+    
     try {
-      const companyConfig = getCompanyConfig(company);
-
-      // Save to MongoDB
-      const newQuestion = new this.questionModel({
-        threadId: currentThreadId,
-        question,
-        company: company || 'default',
-        assistant: companyConfig.assistant.name,
+      // Get conversation history from the thread
+      const messages = await openai.beta.threads.messages.list(currentThreadId, {
+        order: 'asc'
       });
-      await newQuestion.save();
 
-      // Store to WordPress
-      await storeWordpress({
-        threadId: currentThreadId,
+      // Convert thread messages to chat completion format
+      const chatMessages = [
+        {
+          role: 'system',
+          content: assistantConfig.instructions || 'You are a helpful assistant.'
+        },
+        ...messages.data.map(msg => ({
+          role: msg.role,
+          content: msg.content
+            .filter(block => block.type === 'text')
+            .map(block => {
+              if (block.type === 'text' && 'text' in block) {
+                return block.text.value;
+              }
+              return '';
+            })
+            .join('\n')
+        })),
+        {
+          role: 'user',
+          content: question
+        }
+      ];
+
+      // First, save user message to thread
+      await createMessageUseCase(openai, {
+        theadId: currentThreadId,
         question,
-        company: company || 'default',
-        assistant: companyConfig.assistant.name,
       });
+
+      // Stream the response immediately using real OpenAI streaming
+      const assistantResponse = await streamResponseUseCase(openai, {
+        threadId: currentThreadId,
+        messages: chatMessages,
+        response,
+        assistantId: assistantConfig.id,
+        model: assistantConfig.model,
+      });
+
+      // Save assistant response to thread (in background to not delay response)
+      setImmediate(async () => {
+        try {
+          if (assistantResponse) {
+            await createAssistantMessageUseCase(openai, {
+              threadId: currentThreadId,
+              content: assistantResponse,
+            });
+          }
+        } catch (error) {
+          console.error('Error saving assistant message to thread:', error);
+        }
+      });
+
+      // Save to database and WordPress (in background)
+      setImmediate(async () => {
+        try {
+          const companyConfig = getCompanyConfig(company);
+
+          // Save to MongoDB
+          const newQuestion = new this.questionModel({
+            threadId: currentThreadId,
+            question,
+            company: company || 'default',
+            assistant: companyConfig.assistant.name,
+          });
+          await newQuestion.save();
+
+          // Store to WordPress
+          await storeWordpress({
+            threadId: currentThreadId,
+            question,
+            company: company || 'default',
+            assistant: companyConfig.assistant.name,
+          });
+        } catch (error) {
+          console.error('Error saving conversation:', error);
+        }
+      });
+
     } catch (error) {
-      // Log the error but don't affect the user experience
-      console.error('Error saving conversation:', error);
+      console.error('Stream question error:', error);
+      
+      // Send error to client
+      response.write(
+        `data: ${JSON.stringify({
+          status: 'error',
+          message: 'Error processing your question',
+        })}\n\n`,
+      );
+      response.end();
     }
   }
 }
