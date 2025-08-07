@@ -15,6 +15,5 @@ export const createAssistantMessageUseCase = async (
     role: 'assistant',
     content: content,
   });
-  
   return message;
 };

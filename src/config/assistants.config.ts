@@ -58,7 +58,7 @@ export const assistantsConfig: { [key: string]: CompanyConfig } = {
     },
   },
   laTorreLaw: {
-    name: 'La Torre Law',
+    name: 'LaTorre Law',
     assistant: {
       id: 'asst_UyucgVomt8ss7y5BUDvwoFut', // Replace with actual ID
       name: 'La Torre Law Assistant',
