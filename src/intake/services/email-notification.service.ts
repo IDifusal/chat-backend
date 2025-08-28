@@ -361,7 +361,7 @@ export class EmailNotificationService {
 
         <div class="footer">
             <div class="footer-text">
-                Esta notificación fue generada automáticamente por el sistema de ChatBot de Espanglishmarketing <br>
+                Esta notificación fue generada automáticamente por el sistema de ChatBot ${data.company ? `de ${data.company}` : ''} <br>
                 Fecha: ${new Date().toLocaleString('es-ES', { timeZone: 'America/Mexico_City' })}
             </div>
         </div>
