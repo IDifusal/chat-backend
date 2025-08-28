@@ -12,5 +12,6 @@ import { Question, QuestionSchema } from './schema/question.schema';
   ],
   controllers: [GptController],
   providers: [GptService],
+  exports: [GptService],
 })
 export class GptModule {}

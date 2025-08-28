@@ -18,6 +18,11 @@ export interface CompanyConfig {
   description?: string;
   assistant: AssistantConfig; // Single assistant instead of multiple
   wordpress: WordPressConfig;
+  notification?: NotificationConfig;
+}
+
+export interface NotificationConfig {
+  email: string[];
 }
 
 export const assistantsConfig: { [key: string]: CompanyConfig } = {
@@ -36,6 +41,9 @@ export const assistantsConfig: { [key: string]: CompanyConfig } = {
     wordpress: {
       isReady: true,
       endpoint: 'https://centromedicolatino.com/wp-json/custom/v1/thread/',
+    },
+    notification: {
+      email: ['admin@defaultcompany.com', 'support@defaultcompany.com'],
     },
   },
 
@@ -56,9 +64,12 @@ export const assistantsConfig: { [key: string]: CompanyConfig } = {
       isReady: false,
       endpoint: 'https://company1.com/wp-json/custom/v1/thread/',
     },
+    notification: {
+      email: ['admin@espanglish.com', 'notifications@espanglish.com'],
+    },
   },
-  laTorreLaw: {
-    name: 'laTorreLaw',
+  latorreLaw: {
+    name: 'latorreLaw',
     assistant: {
       id: 'asst_UyucgVomt8ss7y5BUDvwoFut',
       name: 'La Torre Law Assistant',
@@ -67,6 +78,9 @@ export const assistantsConfig: { [key: string]: CompanyConfig } = {
     wordpress: {
       isReady: false,
       endpoint: 'https://latorellaw.com/wp-json/custom/v1/thread/',
+    },
+    notification: {
+      email: ['web.espanglish@gmail.com'],
     },
   },
 };

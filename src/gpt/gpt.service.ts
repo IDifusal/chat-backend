@@ -9,6 +9,7 @@ import {
   createThreadUseCase,
   getMessageListUseCase,
   streamResponseUseCase,
+  summarizeConversationUseCase,
 } from './use-cases';
 import { QuestionDto } from './dtos/question.dtos';
 import { Question, QuestionDocument } from './schema/question.schema';
@@ -110,35 +111,39 @@ export class GptService {
 
     // Get assistant configuration
     const assistantConfig = this.getAssistantConfig({ company });
-    
+
     try {
       // Get conversation history from the thread
-      const messages = await openai.beta.threads.messages.list(currentThreadId, {
-        order: 'asc'
-      });
+      const messages = await openai.beta.threads.messages.list(
+        currentThreadId,
+        {
+          order: 'asc',
+        },
+      );
 
       // Convert thread messages to chat completion format
       const chatMessages = [
         {
           role: 'system',
-          content: assistantConfig.instructions || 'You are a helpful assistant.'
+          content:
+            assistantConfig.instructions || 'You are a helpful assistant.',
         },
-        ...messages.data.map(msg => ({
+        ...messages.data.map((msg) => ({
           role: msg.role,
           content: msg.content
-            .filter(block => block.type === 'text')
-            .map(block => {
+            .filter((block) => block.type === 'text')
+            .map((block) => {
               if (block.type === 'text' && 'text' in block) {
                 return block.text.value;
               }
               return '';
             })
-            .join('\n')
+            .join('\n'),
         })),
         {
           role: 'user',
-          content: question
-        }
+          content: question,
+        },
       ];
 
       // First, save user message to thread
@@ -195,10 +200,9 @@ export class GptService {
           console.error('Error saving conversation:', error);
         }
       });
-
     } catch (error) {
       console.error('Stream question error:', error);
-      
+
       // Send error to client
       response.write(
         `data: ${JSON.stringify({
@@ -208,5 +212,24 @@ export class GptService {
       );
       response.end();
     }
+  }
+
+  async summarizeConversation(
+    conversation: any[] | string,
+    options?: {
+      maxLength?: number;
+      language?: 'es' | 'en';
+      includeKeyPoints?: boolean;
+      company?: string;
+    },
+  ) {
+    const openai = this.getOpenAIClient({ company: options?.company });
+
+    return await summarizeConversationUseCase(openai, {
+      conversation,
+      maxLength: options?.maxLength,
+      language: options?.language,
+      includeKeyPoints: options?.includeKeyPoints,
+    });
   }
 }

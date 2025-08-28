@@ -5,3 +5,4 @@ export * from './create-assistant-message.use-case';
 export * from './check-complete-status.use-case';
 export * from './get-messages-list.use-case';
 export * from './stream-response.use-case';
+export * from './summarize-conversation.use-case';

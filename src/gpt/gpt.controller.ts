@@ -8,7 +8,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { GptService } from './gpt.service';
-import { QuestionDto } from './dtos/question.dtos';
+import { QuestionDto, SummarizeConversationDto } from './dtos/question.dtos';
 import { Response } from 'express';
 import { companyExists, getAssistantConfig } from '../config/assistants.config';
 
@@ -106,6 +106,36 @@ export class GptController {
         );
         response.end();
       }
+    }
+  }
+
+  @Post('summarize-conversation')
+  async summarizeConversation(@Body() summarizeDto: SummarizeConversationDto) {
+    try {
+      // Validate company if provided
+      if (summarizeDto.company && !companyExists(summarizeDto.company)) {
+        throw new BadRequestException(
+          `Company '${summarizeDto.company}' not found. Please provide a valid company.`,
+        );
+      }
+
+      const result = await this.gptService.summarizeConversation(
+        summarizeDto.conversation,
+        {
+          maxLength: summarizeDto.maxLength,
+          language: summarizeDto.language,
+          includeKeyPoints: summarizeDto.includeKeyPoints,
+          company: summarizeDto.company,
+        },
+      );
+
+      return {
+        status: 'success',
+        data: result,
+      };
+    } catch (error) {
+      console.error('Summarize conversation error:', error);
+      throw new BadRequestException('Failed to summarize conversation');
     }
   }
 }

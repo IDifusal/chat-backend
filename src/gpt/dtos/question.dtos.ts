@@ -1,4 +1,10 @@
-import { IsString, IsOptional } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsBoolean,
+  IsIn,
+} from 'class-validator';
 
 export class QuestionDto {
   @IsString()
@@ -7,6 +13,28 @@ export class QuestionDto {
 
   @IsString()
   readonly question: string;
+
+  @IsString()
+  @IsOptional()
+  readonly company?: string;
+}
+
+export class SummarizeConversationDto {
+  @IsOptional()
+  readonly conversation: any[] | string;
+
+  @IsNumber()
+  @IsOptional()
+  readonly maxLength?: number;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['es', 'en'])
+  readonly language?: 'es' | 'en';
+
+  @IsBoolean()
+  @IsOptional()
+  readonly includeKeyPoints?: boolean;
 
   @IsString()
   @IsOptional()
