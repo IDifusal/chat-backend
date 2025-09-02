@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { summarizeConversationUseCase } from './summarize-conversation.use-case';
 
 interface ToolCallOptions {
   threadId: string;
@@ -156,6 +157,8 @@ function formatPhoneNumber(phone: string): PhoneInfo {
 }
 
 // Function to send SMS with proper phone formatting using Twilio API
+// Currently disabled - uncomment when ready to use
+/* eslint-disable @typescript-eslint/no-unused-vars */
 async function sendSMS(
   phone: string,
   message: string,
@@ -252,7 +255,10 @@ async function sendSMS(
 }
 
 // Function to send email using Mailgun API
-async function sendEmail(args: any): Promise<boolean> {
+async function sendEmail(
+  args: any,
+  conversationSummary?: string,
+): Promise<boolean> {
   try {
     const { name, client_phone, company_name } = args;
     const phoneInfo = formatPhoneNumber(client_phone);
@@ -375,7 +381,20 @@ async function sendEmail(args: any): Promise<boolean> {
                 <strong>Country Code:</strong> ${phoneInfo.countryCode}<br>
                 <strong>Source:</strong> ChatBot Assistant
             </div>
-        </div>
+        </div>`;
+
+    // Add conversation summary if available
+    if (conversationSummary) {
+      htmlContent += `
+        <div class="info-item" style="background: #f0f9ff; border-left: 4px solid #0ea5e9;">
+            <span class="label">📋 Conversation Summary</span>
+            <div class="value" style="white-space: pre-line; line-height: 1.6; font-size: 14px;">
+                ${conversationSummary}
+            </div>
+        </div>`;
+    }
+
+    htmlContent += `
         
         <div style="margin-top: 20px; padding: 15px; background: #fff3cd; border-radius: 8px; border-left: 4px solid #ffc107;">
             <strong>⏰ Next Steps:</strong>
@@ -409,7 +428,7 @@ async function sendEmail(args: any): Promise<boolean> {
     formData.append('html', htmlContent);
 
     // Also send plain text version
-    const textContent = `
+    let textContent = `
 New Appointment Request
 
 Client Name: ${name || 'Not provided'}
@@ -420,7 +439,17 @@ Phone Details:
 - Original: ${client_phone}
 - Formatted: ${phoneInfo.formatted}
 - Country: ${phoneInfo.country}
-- Valid: ${phoneInfo.isValid ? 'Yes' : 'No'}
+- Valid: ${phoneInfo.isValid ? 'Yes' : 'No'}`;
+
+    // Add conversation summary to text version
+    if (conversationSummary) {
+      textContent += `
+
+Conversation Summary:
+${conversationSummary}`;
+    }
+
+    textContent += `
 
 Please contact the client to confirm appointment details.
 `;
@@ -465,11 +494,30 @@ export const handleToolCallsUseCase = async (
 ): Promise<void> => {
   const { threadId, runId, toolCalls } = options;
 
+  console.log('🔧 handleToolCallsUseCase called:', {
+    threadId,
+    runId,
+    toolCallsCount: toolCalls?.length || 0,
+    toolCalls:
+      toolCalls?.map((tc) => ({
+        id: tc.id,
+        name: tc.function?.name,
+        args: tc.function?.arguments,
+      })) || [],
+  });
+
   const toolOutputs = [];
 
   for (const toolCall of toolCalls) {
+    console.log(`🛠️ Processing tool call: ${toolCall.function.name}`, {
+      id: toolCall.id,
+      name: toolCall.function.name,
+      arguments: toolCall.function.arguments,
+    });
+
     try {
       const args = JSON.parse(toolCall.function.arguments);
+      console.log('📝 Parsed tool call arguments:', args);
 
       // Handle different function types
       if (
@@ -477,6 +525,7 @@ export const handleToolCallsUseCase = async (
         toolCall.function.name === 'book_appointment' ||
         toolCall.function.name === 'schedule_appointment'
       ) {
+        console.log('📞 Processing appointment/SMS tool call');
         // Get phone number from args
         const phoneNumber = args.client_phone || args.phone || args.phoneNumber;
 
@@ -488,69 +537,152 @@ export const handleToolCallsUseCase = async (
         const phoneInfo = formatPhoneNumber(phoneNumber);
         const customerName = args.name || 'valued customer';
 
-        // Customize message based on country
-        let smsMessage: string;
-        const baseMessage = `${customerName}! Gracias por usar nuestro ChatBot.`;
+        // Set standard English message for all countries
+        const smsMessage = `Hello ${customerName}! Thank you for using our ChatBot. We will get in touch with you soon.`;
 
-        if (phoneInfo.country.includes('Peru')) {
-          smsMessage = `¡Hola ${baseMessage} Nos pondremos en contacto contigo pronto.`;
-        } else if (phoneInfo.country.includes('Mexico')) {
-          smsMessage = `¡Hola ${baseMessage} Te contactaremos pronto.`;
-        } else if (phoneInfo.country.includes('Spain')) {
-          smsMessage = `¡Hola ${baseMessage} Te contactaremos en breve.`;
-        } else {
-          // Default English for USA/Canada or unknown
-          smsMessage = `Hello ${customerName}! Thank you for using our ChatBot. We will get in touch with you soon.`;
+        console.log('📱 SMS would be sent to:', {
+          to: phoneInfo.formatted,
+          message: smsMessage,
+          customerName,
+          phoneInfo,
+        });
+
+        // SMS sending disabled for now
+        const smsResult = {
+          success: true,
+          phoneInfo,
+          message: 'SMS sending disabled - would have sent successfully',
+        };
+        console.log('📱 SMS Result (simulated):', smsResult);
+
+        console.log('📧 Generating conversation summary for email');
+        // Get conversation summary
+        let conversationSummary = '';
+        try {
+          // Get conversation history from the thread
+          const messages = await openai.beta.threads.messages.list(threadId, {
+            order: 'asc',
+            limit: 50, // Get recent messages
+          });
+
+          // Convert thread messages to conversation format
+          const conversationMessages = messages.data.map((msg) => ({
+            role: msg.role as 'user' | 'assistant',
+            content: msg.content
+              .filter((block) => block.type === 'text')
+              .map((block) => {
+                if (block.type === 'text' && 'text' in block) {
+                  return block.text.value;
+                }
+                return '';
+              })
+              .join('\n'),
+          }));
+
+          const summaryResult = await summarizeConversationUseCase(openai, {
+            conversation: conversationMessages,
+            maxLength: 200,
+            language: 'es',
+            includeKeyPoints: true,
+          });
+
+          conversationSummary = summaryResult.summary;
+          console.log('📝 Conversation summary generated:', summaryResult);
+        } catch (error) {
+          console.error('❌ Failed to generate conversation summary:', error);
+          conversationSummary =
+            'No se pudo generar el resumen de la conversación.';
         }
 
-        // Send SMS with formatted phone number
-        const smsResult = await sendSMS(phoneInfo.formatted, smsMessage);
+        console.log(
+          '📧 Sending admin email notification with conversation summary',
+        );
+        // Send admin email notification with conversation summary
+        const emailSuccess = await sendEmail(
+          {
+            ...args,
+            client_phone: phoneInfo.formatted, // Use formatted phone in email
+            phone_info: phoneInfo, // Include phone info for admin
+          },
+          conversationSummary,
+        );
+        console.log('📧 Email Result:', { success: emailSuccess });
 
-        // Send admin email notification
-        const emailSuccess = await sendEmail({
-          ...args,
-          client_phone: phoneInfo.formatted, // Use formatted phone in email
-          phone_info: phoneInfo, // Include phone info for admin
-        });
+        const toolOutput = {
+          sms_delivered: smsResult.success,
+          email_sent: emailSuccess,
+          phone_formatted: phoneInfo.formatted,
+          phone_country: phoneInfo.country,
+          phone_valid: phoneInfo.isValid,
+          original_phone: phoneNumber,
+          message:
+            smsResult.success && emailSuccess
+              ? '✅ Successfully sent. Your appointment information has been processed and sent to our team. We will contact you soon.'
+              : `❌ Processing error: SMS ${
+                  smsResult.success ? 'OK' : 'failed'
+                }, Email ${emailSuccess ? 'OK' : 'failed'}`,
+          success_message: '✅ Successfully sent',
+        };
+
+        console.log('✅ Tool output prepared:', toolOutput);
 
         toolOutputs.push({
           tool_call_id: toolCall.id,
-          output: JSON.stringify({
-            sms_delivered: smsResult.success,
-            email_sent: emailSuccess,
-            phone_formatted: phoneInfo.formatted,
-            phone_country: phoneInfo.country,
-            phone_valid: phoneInfo.isValid,
-            original_phone: phoneNumber,
-            message: smsResult.success
-              ? 'Appointment request processed successfully'
-              : `SMS failed: ${smsResult.error}`,
-          }),
+          output: JSON.stringify(toolOutput),
         });
       } else {
+        console.log('🔧 Processing other tool type:', toolCall.function.name);
         // Handle other tool types
+        const otherToolOutput = {
+          success: true,
+          message: `Function ${toolCall.function.name} executed`,
+        };
+
+        console.log('✅ Other tool output:', otherToolOutput);
+
         toolOutputs.push({
           tool_call_id: toolCall.id,
-          output: JSON.stringify({
-            success: true,
-            message: `Function ${toolCall.function.name} executed`,
-          }),
+          output: JSON.stringify(otherToolOutput),
         });
       }
     } catch (error) {
-      console.error(`Error processing tool call ${toolCall.id}:`, error);
+      console.error(`❌ Error processing tool call ${toolCall.id}:`, {
+        error: error.message,
+        stack: error.stack,
+        toolCallName: toolCall.function?.name,
+        toolCallArgs: toolCall.function?.arguments,
+      });
+
+      const errorOutput = {
+        success: false,
+        error: error.message,
+      };
+
       toolOutputs.push({
         tool_call_id: toolCall.id,
-        output: JSON.stringify({
-          success: false,
-          error: error.message,
-        }),
+        output: JSON.stringify(errorOutput),
       });
     }
   }
 
-  // Submit tool outputs to OpenAI
-  await openai.beta.threads.runs.submitToolOutputs(threadId, runId, {
-    tool_outputs: toolOutputs,
+  console.log('🚀 Submitting tool outputs to OpenAI:', {
+    threadId,
+    runId,
+    outputsCount: toolOutputs.length,
+    outputs: toolOutputs.map((output) => ({
+      id: output.tool_call_id,
+      output: output.output,
+    })),
   });
+
+  // Submit tool outputs to OpenAI
+  try {
+    await openai.beta.threads.runs.submitToolOutputs(threadId, runId, {
+      tool_outputs: toolOutputs,
+    });
+    console.log('✅ Tool outputs submitted successfully to OpenAI');
+  } catch (error) {
+    console.error('❌ Failed to submit tool outputs:', error);
+    throw error;
+  }
 };

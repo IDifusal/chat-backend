@@ -42,9 +42,6 @@ export const assistantsConfig: { [key: string]: CompanyConfig } = {
       isReady: true,
       endpoint: 'https://centromedicolatino.com/wp-json/custom/v1/thread/',
     },
-    notification: {
-      email: ['admin@defaultcompany.com', 'support@defaultcompany.com'],
-    },
   },
 
   // Example of another company
@@ -64,15 +61,12 @@ export const assistantsConfig: { [key: string]: CompanyConfig } = {
       isReady: false,
       endpoint: 'https://company1.com/wp-json/custom/v1/thread/',
     },
-    notification: {
-      email: ['admin@espanglish.com', 'notifications@espanglish.com'],
-    },
   },
   latorreLaw: {
     name: 'latorreLaw',
     assistant: {
       id: 'asst_UyucgVomt8ss7y5BUDvwoFut',
-      name: 'La Torre Law Assistant',
+      name: 'Latorre Law Assistant',
       description: 'Assistant that helps with legal services',
     },
     wordpress: {
